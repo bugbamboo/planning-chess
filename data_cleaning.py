@@ -1,8 +1,12 @@
-from datasets import Dataset
+from datasets import Dataset,load_dataset
 import random
 import chess
+import re
+ds = load_dataset("Lichess/chess-position-evaluations",'train')
+#filter out all black to move positions
+ds = ds.filter(lambda x: x.split(' ')[1] == 'w')
+ds = ds.select(range(0,len(ds),50))
 
-ds = Dataset.load_from_disk("filtered_dataset_small")
 def generate_board_prompt(fen):
     """
     Takes a FEN string, creates a chess board using python-chess, and returns an LLM prompt

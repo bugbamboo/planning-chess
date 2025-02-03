@@ -4,10 +4,17 @@ from stockfish import Stockfish
 import re
 import chess
 from trl import GRPOTrainer, GRPOConfig
+import os
+#set up wandb
+os.environ["WANDB_PROJECT"] = "chess-rl"
+
+
+
 
 #load it back in
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts")
 ds = ds.shuffle(seed=42)
+ds = ds.select(range(12))
 stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2",depth=10)
 stockfish.update_engine_parameters({"Hash": 64,"Threads": 12})
 
@@ -64,16 +71,31 @@ def eval_reward(fen,move):
     diff = min(0, final_eval-curr_eval)*lose_queen/1000 #max because you can't do better than stockfish
     return diff
 def format_reward_func(completion):
+    completion = completion.replace("\n","")
     pattern = r"^<think>.*?</think><answer>.*?</answer>$"
     return 2.0 if re.match(pattern, completion) else 0.0
+def soft_format_reward_func(completion):
+    count = 0.0
+    if completion.count("<reasoning>") == 1:
+        count += 0.25
+    if completion.count("</reasoning>") == 1:
+        count += 0.25
+    if completion.count("<answer>") == 1:
+        count += 0.25
+    if completion.count("</answer>") == 1:
+        count += 0.25
+    return count
 def legal_reward_func(completion,fen):
+    completion = completion.replace("\n","")
     if format_reward_func(completion) == 2.0:
         legal_move = legal_move(fen,completion)
         if legal_move is not None:
             return 5.0
     return 0.0
 
+
 def eval_reward_func(completion,fen):
+    completion = completion.replace("\n","")
     format_reward = format_reward_func(completion)
     if format_reward == 2.0:
         legal_move = legal_reward_func(fen,completion)
@@ -85,15 +107,22 @@ def eval_reward_func(completion,fen):
 
 
 
-def format_reward(completions,fens, **kwargs):
-    completion_contents = [completion[0]["content"] for completion in completions]
-    return [format_reward_func(completion) for completion in completion_contents]
-def legal_reward(completions,fens, **kwargs):
-    completion_contents = [completion[0]["content"] for completion in completions]
-    return [legal_reward_func(completion,fen) for completion,fen in zip(completion_contents,fens)]
-def eval_reward(completions,fens, **kwargs):
-    completion_contents = [completion[0]["content"] for completion in completions]
-    return [eval_reward_func(completion,fen) for completion,fen in zip(completion_contents,fens)]
+def format_reward(completions, **kwargs):
+    return [format_reward_func(completion) for completion in completions]
+def legal_reward(completions,fen, **kwargs):
+    return [legal_reward_func(completion,fen) for completion,f in zip(completions,fen)]
+def eval_reward(completions,fen, **kwargs):
+    return [eval_reward_func(completion,fen) for completion,f in zip(completions,fen)]
+def length_reward(completions, **kwargs):
+    #rewards for thinking ~2048 characters
+    scale = 0.05
+    thinking_rewards = [-abs(len(completion)-2048)/2048 for completion in completions]
+    return [scale*reward for reward in thinking_rewards]
+def soft_format_reward(completions, **kwargs):
+    return [soft_format_reward_func(completion) for completion in completions]
+
+
+    
 
 
 training_args = GRPOConfig(
@@ -119,7 +148,7 @@ training_args = GRPOConfig(
 
 trainer = GRPOTrainer(
     model="Qwen/Qwen2-1.5B-Instruct",
-    reward_funcs=[format_reward,legal_reward,eval_reward],
+    reward_funcs=[format_reward,legal_reward,eval_reward,length_reward,soft_format_reward],
     train_dataset=ds,
 )
 

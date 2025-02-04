@@ -49,10 +49,10 @@ class WandbPredictionProgressCallback(WandbCallback):
             self._wandb.log({"sample_predictions": records_table})
         return control
 
-ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts")
+ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts_final")
 ds = ds.shuffle(seed=42)
 eval_ds = ds.select(range(100000,100003))
-ds = ds.select(range(50000))
+ds = ds.select(range(30000))
 stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=18)
 stockfish.update_engine_parameters({"Hash": 64, "Threads": 12})
 
@@ -67,11 +67,11 @@ def legal_move(fen, completion):
 
 def checkmate(fen, move):
     board = chess.Board(fen)
-    board.push(move)
+    board.push(chess.Move.from_uci(move))
     return board.is_game_over()
 
 
-def eval_reward(fen, move):
+def eval(fen, move):
     # hyperparams:
     checkmate_reward = 2.0
     lose_queen = 3.0
@@ -109,7 +109,7 @@ def eval_reward(fen, move):
             final_eval = evaluation['value']
         else:
             return -throw_mate
-    diff = min(0, final_eval - curr_eval) * lose_queen / 1000  # max because you can't do better than stockfish
+    diff =  (final_eval - curr_eval) * lose_queen / 1000  # max because you can't do better than stockfish
     return diff
 
 
@@ -121,9 +121,9 @@ def format_reward_func(completion):
 
 def soft_format_reward_func(completion):
     count = 0.0
-    if completion.count("<reasoning>") == 1:
+    if completion.count("<think>") == 1:
         count += 0.25
-    if completion.count("</reasoning>") == 1:
+    if completion.count("</think>") == 1:
         count += 0.25
     if completion.count("<answer>") == 1:
         count += 0.25
@@ -145,10 +145,10 @@ def eval_reward_func(completion, fen):
     completion = completion.replace("\n", "")
     format_reward = format_reward_func(completion)
     if format_reward == 2.0:
-        legal_mv = legal_reward_func(fen, completion)
-        if legal_mv == 5.0:
-            eval_r = eval_reward(fen, legal_mv)
-            return min(-4.5, eval_r)
+        legal_mv = legal_move(fen, completion)
+        if legal_mv is not None:
+            eval_r = eval(fen, legal_mv)
+            return max(-4.5, eval_r)
         return 0.0
     return 0.0
 
@@ -163,13 +163,6 @@ def legal_reward(completions, fen, **kwargs):
 
 def eval_reward(completions, fen, **kwargs):
     return [eval_reward_func(completion, f) for completion, f in zip(completions, fen)]
-
-
-def length_reward(completions, **kwargs):
-    # rewards for thinking ~2048 characters
-    scale = 0.05
-    thinking_rewards = [-abs(len(completion) - 2048) / 2048 for completion in completions]
-    return [scale * reward for reward in thinking_rewards]
 
 
 def soft_format_reward(completions, **kwargs):
@@ -187,9 +180,9 @@ training_args = GRPOConfig(
     lr_scheduler_type='cosine',
     logging_steps=1,
     bf16=True,
-    per_device_train_batch_size=4,
+    per_device_train_batch_size=1,
     gradient_accumulation_steps=1,
-    num_generations=6,
+    num_generations=24,
     num_train_epochs=1,
     save_steps=100,
     max_grad_norm=0.1,
@@ -208,7 +201,7 @@ tokenizer.pad_token = tokenizer.eos_token
 trainer = GRPOTrainer(
     model=model,
     processing_class=tokenizer,
-    reward_funcs=[format_reward, legal_reward, eval_reward, length_reward, soft_format_reward],
+    reward_funcs=[format_reward, legal_reward, eval_reward, soft_format_reward],
     train_dataset=ds,
     args=training_args
 )

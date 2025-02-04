@@ -6,10 +6,15 @@ import chess
 from trl import GRPOTrainer, GRPOConfig
 from transformers.integrations import WandbCallback
 import os
+import chess.svg
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import pandas as pd
+import random
+import cairosvg
+from PIL import Image
 # set up wandb
+
 import wandb
 os.environ["WANDB_PROJECT"] = "chess-rl"
 
@@ -25,8 +30,9 @@ class WandbPredictionProgressCallback(WandbCallback):
         super().__init__()
         self.trainer = trainer
         self.tokenizer = tokenizer
-        self.sample_dataset = eval_dataset
+        self.dataset = eval_dataset
         self.freq = freq
+        
 
     def on_step_end(self, args, state, control, **kwargs):
         # Only log from the main GPU to ensure one unified set of data.
@@ -37,13 +43,38 @@ class WandbPredictionProgressCallback(WandbCallback):
         super().on_step_end(args, state, control, **kwargs)
         # Log predictions every `freq` steps
         if state.global_step % self.freq == 0:
-            prompts = self.sample_dataset['prompt']
+            sample = self.dataset.select(random.sample(range(len(self.dataset)), 3))
+            fens = sample['fen']
+            boards = []
+            for i, fen in enumerate(fens):
+                print(f"saving board {fen}")
+                board = chess.Board(fen)
+                svg_board = chess.svg.board(board=board)
+                svg_filename = f"board{i}.svg"
+                png_filename = f"board{i}.png"
+                with open(svg_filename, "w") as svg_file:
+                    svg_file.write(svg_board)
+                
+                cairosvg.svg2png(url=svg_filename, write_to=png_filename)
+                #resize image
+                image = Image.open(png_filename)
+                image = image.resize((128, 128))
+                image.save(png_filename)
+                boards.append(wandb.Image(png_filename))
+                
+            prompts = sample['prompt']
             inputs = self.tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(self.trainer.model.device)
             with torch.no_grad():
                 generated_outputs = self.trainer.model.generate(**inputs, max_length=1024)
             completions = self.tokenizer.batch_decode(generated_outputs, skip_special_tokens=True)
             completions = [completion.partition('assistant')[2] for completion in completions]
-            predictions_df = pd.DataFrame({"prompt": prompts, "completion": completions})
+            moves = []
+            for completion in completions:
+                if format_reward_func(completion) == 2.0:
+                    moves.append(completion.split("<answer>")[1].split("</answer>")[0])        
+                else:
+                    moves.append("")        
+            predictions_df = pd.DataFrame({"board": boards, "move": moves, "prompt": prompts, "completion": completions})
             predictions_df["step"] = state.global_step
             records_table = self._wandb.Table(dataframe=predictions_df)
             # Log the table to wandb
@@ -52,7 +83,6 @@ class WandbPredictionProgressCallback(WandbCallback):
 
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts_final")
 ds = ds.shuffle(seed=42)
-eval_ds = ds.select(range(100000,100005))
 ds = ds.select(range(30000))
 stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=18)
 stockfish.update_engine_parameters({"Hash": 64, "Threads": 12})
@@ -116,9 +146,10 @@ def eval(fen, move):
 
 def format_reward_func(completion):
     completion = completion.replace("\n", "")
-    pattern = r"^<think>.*?</think><answer>.*?</answer>$"
-    return 2.0 if re.match(pattern, completion) else 0.0
-
+    if completion[0:7] == "<think>": 
+        pattern = r"^<think>.*?</think><answer>.*?</answer>$"
+        return 2.0 if re.match(pattern, completion) else 0.0
+    return 0.0
 
 def soft_format_reward_func(completion):
     count = 0.0
@@ -209,7 +240,7 @@ trainer = GRPOTrainer(
 progress_callback = WandbPredictionProgressCallback(
     trainer=trainer,
     tokenizer=tokenizer,
-    eval_dataset=eval_ds,
+    eval_dataset=ds,
     freq=10
 )
 

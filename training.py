@@ -49,8 +49,8 @@ class WandbPredictionProgressCallback(WandbCallback):
             for i, fen in enumerate(fens):
                 board = chess.Board(fen)
                 svg_board = chess.svg.board(board=board)
-                svg_filename = f"board{i}.svg"
-                png_filename = f"board{i}.png"
+                svg_filename = f"boards/board{i}.svg"
+                png_filename = f"boards/board{i}.png"
                 with open(svg_filename, "w") as svg_file:
                     svg_file.write(svg_board)
                 

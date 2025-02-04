@@ -4,17 +4,43 @@ from stockfish import Stockfish
 import re
 import chess
 from trl import GRPOTrainer, GRPOConfig
+from transformers import TrainerCallback
 import os
 #set up wandb
+import wandb
 os.environ["WANDB_PROJECT"] = "chess-rl"
 
 
+class LoggingCallback(TrainerCallback):
+    def __init__(self, n_samples=3):
+        self.n_samples = n_samples
+        self.trainer = None  # Will store trainer reference
 
+    def on_train_begin(self, args, state, control, model=None, **kwargs):
+        # Store trainer reference when training begins
+        self.trainer = kwargs.get('trainer')
+
+    def on_step_end(self, args, state, control, model=None, **kwargs):
+        if state.global_step % args.logging_steps == 0 and self.trainer is not None:
+            # Get a few samples from the dataset
+            samples = self.trainer.train_dataset.select(range(self.n_samples))
+            
+            # Generate outputs
+            outputs = self.trainer.generate(samples['prompt'])
+            
+            # Log to wandb
+            for i in range(self.n_samples):
+                print("EMWOWIJWKAHFLKJSFHLKSFHJKL")
+                wandb.log({
+                    f"example_{i}/input": samples['prompt'][i],
+                    f"example_{i}/output": outputs[i],
+                    "step": state.global_step
+                })
 
 #load it back in
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts")
 ds = ds.shuffle(seed=42)
-ds = ds.select(range(12))
+ds = ds.select(range(1000))
 stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2",depth=10)
 stockfish.update_engine_parameters({"Hash": 64,"Threads": 12})
 
@@ -136,7 +162,7 @@ training_args = GRPOConfig(
     lr_scheduler_type='cosine',
     logging_steps=1,
     bf16=True,
-    per_device_train_batch_size=4,
+    per_device_train_batch_size=16,
     gradient_accumulation_steps=4,
     num_generations=16,
     num_train_epochs=1,
@@ -150,6 +176,7 @@ trainer = GRPOTrainer(
     model="Qwen/Qwen2-1.5B-Instruct",
     reward_funcs=[format_reward,legal_reward,eval_reward,length_reward,soft_format_reward],
     train_dataset=ds,
+    callbacks=[LoggingCallback(n_samples=3)]
 )
 
 trainer.train()

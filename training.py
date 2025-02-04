@@ -47,7 +47,6 @@ class WandbPredictionProgressCallback(WandbCallback):
             fens = sample['fen']
             boards = []
             for i, fen in enumerate(fens):
-                print(f"saving board {fen}")
                 board = chess.Board(fen)
                 svg_board = chess.svg.board(board=board)
                 svg_filename = f"board{i}.svg"

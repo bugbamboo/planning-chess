@@ -83,6 +83,7 @@ class WandbPredictionProgressCallback(WandbCallback):
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts_final")
 ds = ds.shuffle(seed=42)
 ds = ds.select(range(30000))
+ds["step"] = [i for i in range(len(ds))]
 stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=18)
 stockfish.update_engine_parameters({"Hash": 64, "Threads": 12})
 
@@ -192,8 +193,11 @@ def legal_reward(completions, fen, **kwargs):
     return [legal_reward_func(completion, f) for completion, f in zip(completions, fen)]
 
 
-def eval_reward(completions, fen, **kwargs):
-    return [eval_reward_func(completion, f) for completion, f in zip(completions, fen)]
+def eval_reward(completions, fen, step,**kwargs):
+    if step[0] > 1000:
+        return [eval_reward_func(completion, f) for completion, f in zip(completions, fen)]
+    else:
+        return [0.0 for _ in completions]
 
 
 def soft_format_reward(completions, **kwargs):

@@ -30,18 +30,19 @@ class WandbPredictionProgressCallback(WandbCallback):
 
     def on_step_end(self, args, state, control, **kwargs):
         # Only log from the main GPU to ensure one unified set of data.
+        torch.cuda.empty_cache()
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             if torch.distributed.get_rank() != 0:
                 return control
-
         super().on_step_end(args, state, control, **kwargs)
         # Log predictions every `freq` steps
         if state.global_step % self.freq == 0:
             prompts = self.sample_dataset['prompt']
             inputs = self.tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(self.trainer.model.device)
-            generated_outputs = self.trainer.model.generate(**inputs, max_length=1024)
+            with torch.no_grad():
+                generated_outputs = self.trainer.model.generate(**inputs, max_length=1024)
             completions = self.tokenizer.batch_decode(generated_outputs, skip_special_tokens=True)
-            completions = [completion[len(prompt):] for completion, prompt in zip(completions, prompts)]
+            completions = [completion.partition('assistant')[2] for completion in completions]
             predictions_df = pd.DataFrame({"prompt": prompts, "completion": completions})
             predictions_df["step"] = state.global_step
             records_table = self._wandb.Table(dataframe=predictions_df)
@@ -51,7 +52,7 @@ class WandbPredictionProgressCallback(WandbCallback):
 
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts_final")
 ds = ds.shuffle(seed=42)
-eval_ds = ds.select(range(100000,100003))
+eval_ds = ds.select(range(100000,100005))
 ds = ds.select(range(30000))
 stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=18)
 stockfish.update_engine_parameters({"Hash": 64, "Threads": 12})
@@ -182,7 +183,7 @@ training_args = GRPOConfig(
     bf16=True,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=1,
-    num_generations=24,
+    num_generations=20,
     num_train_epochs=1,
     save_steps=100,
     max_grad_norm=0.1,
@@ -209,7 +210,7 @@ progress_callback = WandbPredictionProgressCallback(
     trainer=trainer,
     tokenizer=tokenizer,
     eval_dataset=eval_ds,
-    freq=5
+    freq=10
 )
 
 # Add the callback to the trainer

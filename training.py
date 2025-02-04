@@ -4,53 +4,56 @@ from stockfish import Stockfish
 import re
 import chess
 from trl import GRPOTrainer, GRPOConfig
-from transformers import TrainerCallback
-import os
 from transformers.integrations import WandbCallback
+import os
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import pandas as pd
 # set up wandb
 import wandb
 os.environ["WANDB_PROJECT"] = "chess-rl"
-wandb.init(project="chess-rl")
 
-class LoggingCallback(TrainerCallback):
-    def __init__(self, n_samples=3):
-        self.n_samples = n_samples
-        self.trainer = None  # Will store trainer reference
+def decode_predictions(tokenizer, predictions):
+    labels = tokenizer.batch_decode(predictions.label_ids)
+    logits = predictions.predictions.argmax(axis=-1)
+    prediction_text = tokenizer.batch_decode(logits)
+    return {"labels": labels, "predictions": prediction_text}
 
-    def on_train_begin(self, args, state, control, model=None, **kwargs):
-        # Store trainer reference when training begins
-        self.trainer = kwargs.get('trainer')
+class WandbPredictionProgressCallback(WandbCallback):
+    def __init__(self, trainer, tokenizer, eval_dataset, freq=5):
+        # Ensure wandb is initialized to avoid "wandb.init()" error.
+        super().__init__()
+        self.trainer = trainer
+        self.tokenizer = tokenizer
+        self.sample_dataset = eval_dataset
+        self.freq = freq
 
-    def on_step_end(self, args, state, control, model=None, **kwargs):
-        if state.global_step % args.logging_steps == 0 and self.trainer is not None:
-            # Get a few samples from the dataset
-            samples = self.trainer.train_dataset.select(range(self.n_samples))
-            prompts = samples['prompt']
+    def on_step_end(self, args, state, control, **kwargs):
+        # Only log from the main GPU to ensure one unified set of data.
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            if torch.distributed.get_rank() != 0:
+                return control
 
-            # Generate predictions using the trainer's generate method.
-            # It is assumed that the generate method returns token ids.
-            outputs = self.trainer.generate(prompts)
+        super().on_step_end(args, state, control, **kwargs)
+        # Log predictions every `freq` steps
+        if state.global_step % self.freq == 0:
+            prompts = self.sample_dataset['prompt']
+            inputs = self.tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(self.trainer.model.device)
+            generated_outputs = self.trainer.model.generate(**inputs, max_length=1024)
+            completions = self.tokenizer.batch_decode(generated_outputs, skip_special_tokens=True)
+            completions = [completion[len(prompt):] for completion, prompt in zip(completions, prompts)]
+            predictions_df = pd.DataFrame({"prompt": prompts, "completion": completions})
+            predictions_df["step"] = state.global_step
+            records_table = self._wandb.Table(dataframe=predictions_df)
+            # Log the table to wandb
+            self._wandb.log({"sample_predictions": records_table})
+        return control
 
-            # Decode the generated token ids into strings if a tokenizer is available.
-            if hasattr(self.trainer, "tokenizer") and self.trainer.tokenizer is not None:
-                predictions = self.trainer.tokenizer.batch_decode(outputs, skip_special_tokens=True)
-            else:
-                # Assume outputs are already decoded.
-                predictions = outputs
-
-            # Log each input and its corresponding prediction to wandb.
-            for i in range(self.n_samples):
-                wandb.log({
-                    f"example_{i}/input": prompts[i],
-                    f"example_{i}/prediction": predictions[i],
-                    "step": state.global_step
-                })
-
-# load it back in
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts")
 ds = ds.shuffle(seed=42)
-ds = ds.select(range(1000))
-stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=10)
+eval_ds = ds.select(range(100000,100003))
+ds = ds.select(range(50000))
+stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=18)
 stockfish.update_engine_parameters({"Hash": 64, "Threads": 12})
 
 
@@ -155,11 +158,11 @@ def format_reward(completions, **kwargs):
 
 
 def legal_reward(completions, fen, **kwargs):
-    return [legal_reward_func(completion, fen) for completion, f in zip(completions, fen)]
+    return [legal_reward_func(completion, f) for completion, f in zip(completions, fen)]
 
 
 def eval_reward(completions, fen, **kwargs):
-    return [eval_reward_func(completion, fen) for completion, f in zip(completions, fen)]
+    return [eval_reward_func(completion, f) for completion, f in zip(completions, fen)]
 
 
 def length_reward(completions, **kwargs):
@@ -185,21 +188,38 @@ training_args = GRPOConfig(
     logging_steps=1,
     bf16=True,
     per_device_train_batch_size=4,
-    gradient_accumulation_steps=4,
-    num_generations=16,
+    gradient_accumulation_steps=1,
+    num_generations=6,
     num_train_epochs=1,
     save_steps=100,
     max_grad_norm=0.1,
     report_to="wandb",
-    log_on_each_node=True,
+    log_on_each_node=False
 )
+model = AutoModelForCausalLM.from_pretrained(
+    "Qwen/Qwen2-1.5B-Instruct",
+    torch_dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+    device_map=None
+).to("cuda")
 
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-1.5B-Instruct")
+tokenizer.pad_token = tokenizer.eos_token
 trainer = GRPOTrainer(
-    model="Qwen/Qwen2-1.5B-Instruct",
+    model=model,
+    processing_class=tokenizer,
     reward_funcs=[format_reward, legal_reward, eval_reward, length_reward, soft_format_reward],
     train_dataset=ds,
-    args=training_args,
-    callbacks=[LoggingCallback(n_samples=3)]
+    args=training_args
 )
+progress_callback = WandbPredictionProgressCallback(
+    trainer=trainer,
+    tokenizer=tokenizer,
+    eval_dataset=eval_ds,
+    freq=5
+)
+
+# Add the callback to the trainer
+trainer.add_callback(progress_callback)
 
 trainer.train()

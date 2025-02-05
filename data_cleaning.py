@@ -38,6 +38,34 @@ def generate_board_prompt(fen):
             else:
                 row.append(".")
         prompt_lines.append(" ".join(row))
+    piece_name_mapping = {
+        "K": "White King",
+        "Q": "White Queen",
+        "R": "White Rook",
+        "B": "White Bishop",
+        "N": "White Knight",
+        "P": "White Pawn",
+        "k": "Black King",
+        "q": "Black Queen",
+        "r": "Black Rook",
+        "b": "Black Bishop",
+        "n": "Black Knight",
+        "p": "Black Pawn"
+    }
+    piece_positions = {}
+    for square in chess.SQUARES:
+        piece = board.piece_at(square)
+        if piece:
+            symbol = piece.symbol()
+            full_name = piece_name_mapping.get(symbol, symbol)
+            square_name = chess.square_name(square)
+            piece_positions.setdefault(full_name, []).append(square_name)
+    # Format the piece positions in an LLM tokenizer friendly format
+    piece_list_lines = ["\nPiece Positions:\n"]
+    for full_name in sorted(piece_positions.keys()):
+        sorted_squares = sorted(piece_positions[full_name], key=lambda sq: (sq[0], int(sq[1])))
+        piece_list_lines.append(f"{full_name}: " + ", ".join(sorted_squares))
+    prompt_lines.append("\n".join(piece_list_lines))
     
     prompt_lines.append("\n Below is a list of all legal moves.\n")
     legal_moves = [board.san(move) for move in board.legal_moves]

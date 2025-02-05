@@ -6,7 +6,7 @@ ds = ds.remove_columns([col for col in ds.column_names if col != 'fen'])
 #ds = ds.select(range(0,len(ds),50))
 #ds = ds.filter(lambda x: x['fen'].split(' ')[1] == 'w')
 from transformers import AutoTokenizer
-tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-1.5B-Instruct")
+tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
 SYSTEM_PROMPT = """
 You are an expert chess player, trying to solve a chess puzzle. You are white (your pieces are uppercase), and you are to move. Please think about the move you want to make, then select the best move from the list of legal moves.\n
 Respond in the following format:
@@ -38,6 +38,7 @@ def generate_board_prompt(fen):
             else:
                 row.append(".")
         prompt_lines.append(" ".join(row))
+    
     prompt_lines.append("\n Below is a list of all legal moves.\n")
     legal_moves = [board.san(move) for move in board.legal_moves]
     prompt_lines.append("Legal moves (SAN): " + ", ".join(legal_moves))

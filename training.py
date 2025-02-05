@@ -216,8 +216,8 @@ def soft_format_reward(completions, **kwargs):
 
 
 training_args = GRPOConfig(
-    output_dir="outputs/Qwen-1.5B-GRPO",
-    run_name="Qwen-1.5B-GRPO-chess",
+    output_dir="outputs/DeepSeek-R1-Distill-Qwen-1.5B",
+    run_name="DeepSeek-R1-Distill-Qwen-1.5B-GRPO-chess",
     learning_rate=5e-6,
     adam_beta1=0.9,
     adam_beta2=0.99,
@@ -236,13 +236,13 @@ training_args = GRPOConfig(
     log_on_each_node=False
 )
 model = AutoModelForCausalLM.from_pretrained(
-    "Qwen/Qwen2-1.5B-Instruct",
+    "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
     torch_dtype=torch.bfloat16,
     attn_implementation="flash_attention_2",
     device_map=None
 ).to("cuda")
 
-tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-1.5B-Instruct")
+tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
 tokenizer.pad_token = tokenizer.eos_token
 trainer = GRPOTrainer(
     model=model,

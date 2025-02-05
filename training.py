@@ -13,8 +13,19 @@ import pandas as pd
 import random
 import cairosvg
 from PIL import Image
-# set up wandb
+from torch.utils.data import SequentialSampler
 
+class GRPOTrainer2(GRPOTrainer):
+    def get_train_dataloader(self):
+        if self.train_dataset is None:
+            raise ValueError("Trainer: training requires a train_dataset.")
+        return torch.utils.data.DataLoader(
+            self.train_dataset,
+            batch_size=self.args.train_batch_size,
+            sampler=SequentialSampler(self.train_dataset)
+        )
+
+# set up wandb
 import wandb
 os.environ["WANDB_PROJECT"] = "chess-rl"
 
@@ -82,7 +93,7 @@ class WandbPredictionProgressCallback(WandbCallback):
 
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts_final")
 ds = ds.shuffle(seed=42)
-ds = ds.select(range(30000))
+ds = ds.select(range(20000))
 ds["step"] = [i for i in range(len(ds))]
 stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=18)
 stockfish.update_engine_parameters({"Hash": 64, "Threads": 12})

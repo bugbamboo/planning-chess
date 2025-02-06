@@ -5,3 +5,4 @@ outputs/
 __pycache__/
 boards/
 wandb/
+api_key.txt

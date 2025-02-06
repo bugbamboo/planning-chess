@@ -94,7 +94,7 @@ class WandbPredictionProgressCallback(WandbCallback):
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts_final")
 ds = ds.shuffle(seed=42)
 ds = ds.select(range(20000))
-ds["step"] = [i for i in range(len(ds))]
+ds = ds.add_column("step", [i for i in range(len(ds))])
 stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=18)
 stockfish.update_engine_parameters({"Hash": 64, "Threads": 12})
 

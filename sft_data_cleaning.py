@@ -1,12 +1,13 @@
-from datasets import load_dataset, Dataset
+from datasets import load_dataset
 import chess
-ds = Dataset.load_from_disk("Lichess/chess-position-evaluations")
+from transformers import AutoTokenizer
+ds = load_dataset("Lichess/chess-position-evaluations", split="train")
 
 #filter out all black to move positions, drop all columns except fen
 ds = ds.remove_columns([col for col in ds.column_names if (col != 'fen' and col != 'line')])
 ds = ds.select(range(0,len(ds),50))
 ds = ds.filter(lambda x: x['fen'].split(' ')[1] == 'w')
-from transformers import AutoTokenizer
+
 tokenizer = AutoTokenizer.from_pretrained("unsloth/Meta-Llama-3.1-8B")
 SYSTEM_PROMPT = """
 You are an expert chess player, trying to solve a chess puzzle. You are white (your pieces are uppercase), and you are to move. Please think about the move you want to make, then select the best move from the list of legal moves.\n
@@ -17,6 +18,7 @@ Respond in the following format:
 <answer>
 ...
 </answer>
+\n
 """
 
 def generate_board_prompt(fen):
@@ -137,16 +139,13 @@ Respond in the following format:
 <think>
 ...
 </think>
+\n
 """
 ds = ds.map(lambda x: { # type: ignore
-        'prompt': tokenizer.apply_chat_template([
-            {'role': 'system', 'content': SYSTEM_PROMPT},
-            {'role': 'user', 'content': generate_board_prompt(x["fen"])}],tokenize=False,add_generation_prompt=True)},
-        num_proc=54
-    )
+        'prompt': SYSTEM_PROMPT + generate_board_prompt(x["fen"])})
 ds = ds.map(lambda x: {
     'best_move': best_move(x["fen"], x["line"])
-}, num_proc=54)
+})
 
 def gpt_prompt(fen, best_move):
     board = chess.Board(fen)
@@ -195,8 +194,8 @@ def gpt_prompt(fen, best_move):
     return "\n".join(prompt_lines)
 
 ds = ds.map(lambda x: {
-    'gpt_prompt': gpt_prompt(x["fen"], x["best_move"])
-}, num_proc=54)
+    'gpt_prompt': SYSTEM_PROMPT_2 + gpt_prompt(x["fen"], x["best_move"])
+})
 
 
 

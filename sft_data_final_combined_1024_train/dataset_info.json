@@ -1,0 +1,342 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "chess-position-evaluations",
+  "dataset_size": 67371794090,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00000-of-00034.parquet": {
+      "num_bytes": 607673501,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00001-of-00034.parquet": {
+      "num_bytes": 641066589,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00002-of-00034.parquet": {
+      "num_bytes": 652212084,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00003-of-00034.parquet": {
+      "num_bytes": 661387171,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00004-of-00034.parquet": {
+      "num_bytes": 667549164,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00005-of-00034.parquet": {
+      "num_bytes": 668816886,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00006-of-00034.parquet": {
+      "num_bytes": 675779954,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00007-of-00034.parquet": {
+      "num_bytes": 676513055,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00008-of-00034.parquet": {
+      "num_bytes": 678377703,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00009-of-00034.parquet": {
+      "num_bytes": 681655349,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00010-of-00034.parquet": {
+      "num_bytes": 685281828,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00011-of-00034.parquet": {
+      "num_bytes": 687126675,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00012-of-00034.parquet": {
+      "num_bytes": 687903362,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00013-of-00034.parquet": {
+      "num_bytes": 689032925,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00014-of-00034.parquet": {
+      "num_bytes": 692405415,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00015-of-00034.parquet": {
+      "num_bytes": 691863075,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00016-of-00034.parquet": {
+      "num_bytes": 693685021,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00017-of-00034.parquet": {
+      "num_bytes": 692220935,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00018-of-00034.parquet": {
+      "num_bytes": 692011763,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00019-of-00034.parquet": {
+      "num_bytes": 694701040,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00020-of-00034.parquet": {
+      "num_bytes": 698218725,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00021-of-00034.parquet": {
+      "num_bytes": 697746343,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00022-of-00034.parquet": {
+      "num_bytes": 700967120,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00023-of-00034.parquet": {
+      "num_bytes": 700491320,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00024-of-00034.parquet": {
+      "num_bytes": 701455893,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00025-of-00034.parquet": {
+      "num_bytes": 701111157,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00026-of-00034.parquet": {
+      "num_bytes": 701568346,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00027-of-00034.parquet": {
+      "num_bytes": 798082584,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00028-of-00034.parquet": {
+      "num_bytes": 874039398,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00029-of-00034.parquet": {
+      "num_bytes": 868731471,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00030-of-00034.parquet": {
+      "num_bytes": 828475084,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00031-of-00034.parquet": {
+      "num_bytes": 743518841,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00032-of-00034.parquet": {
+      "num_bytes": 748674072,
+      "checksum": null
+    },
+    "hf://datasets/Lichess/chess-position-evaluations@a9838e83ce8b59fd9ce730a0928627bc96812ee0/data/train-00033-of-00034.parquet": {
+      "num_bytes": 749830404,
+      "checksum": null
+    }
+  },
+  "download_size": 24030174253,
+  "features": {
+    "fen": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "line": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "prompt": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "best_move": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "token_count": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "generated": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "is_correct": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "lens": {
+      "dtype": "int64",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 91401968343,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 67371794090,
+      "num_examples": 482004914,
+      "shard_lengths": [
+        3510000,
+        3509000,
+        3557000,
+        3554000,
+        3513616,
+        3563000,
+        3603000,
+        3536000,
+        3532616,
+        3537000,
+        3542000,
+        3552000,
+        3546616,
+        3552000,
+        3549000,
+        3553616,
+        3561000,
+        3563000,
+        3557000,
+        3551615,
+        3552000,
+        3551000,
+        3559000,
+        3553615,
+        3552000,
+        3555000,
+        3559000,
+        3574615,
+        3570000,
+        3570000,
+        3570000,
+        3577615,
+        3565000,
+        3573000,
+        3569000,
+        3556615,
+        3565000,
+        3555000,
+        3559000,
+        3566615,
+        3573000,
+        3572000,
+        3567000,
+        3571615,
+        3560000,
+        3572000,
+        3574000,
+        3568615,
+        3569000,
+        3570000,
+        3571000,
+        3565615,
+        3563000,
+        3567000,
+        3564000,
+        3566615,
+        3573000,
+        3572000,
+        3573000,
+        3565615,
+        3570000,
+        3569000,
+        3576000,
+        3570615,
+        3567000,
+        3568000,
+        3568000,
+        3565615,
+        3570000,
+        3572000,
+        3574000,
+        3569615,
+        3582000,
+        3591000,
+        3594000,
+        3595615,
+        3570000,
+        3573000,
+        3575000,
+        3573615,
+        3577000,
+        3577000,
+        3576000,
+        3575615,
+        3576000,
+        3573000,
+        3578000,
+        3585615,
+        3589000,
+        3571000,
+        3573000,
+        3568615,
+        3576000,
+        3579000,
+        3584000,
+        3588615,
+        3593000,
+        3588000,
+        3587000,
+        3584615,
+        3589000,
+        3587000,
+        3583000,
+        3587615,
+        3599000,
+        3598000,
+        3588000,
+        3575615,
+        3608000,
+        3623000,
+        3632000,
+        3634615,
+        3634000,
+        3634000,
+        3635000,
+        3632615,
+        3632000,
+        3634000,
+        3628615,
+        3628000,
+        3632000,
+        3617000,
+        3608615,
+        3612000,
+        3601000,
+        3594000,
+        3588615,
+        3592000,
+        3592000,
+        3592000,
+        3602615,
+        3606000,
+        3610000,
+        3604000,
+        2621615
+      ],
+      "dataset_name": "chess-position-evaluations"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

@@ -234,6 +234,8 @@ training_args = GRPOConfig(
     max_grad_norm=0.1,
     report_to="wandb",
     log_on_each_node=False
+
+
 )
 model = AutoModelForCausalLM.from_pretrained(
     "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",

@@ -8,19 +8,31 @@ from openai import OpenAI
 
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts_final")
 ds = ds.shuffle(seed=42)
-ds = ds.select(range(0,len(ds),10))
+ds = ds.select(range(200000,400000))
+examples = Dataset.load_from_disk("sft_data")["generated"][0:3]
+examples = "\n\n Example Reasoning Trace: \n\n" + "\n\n".join(examples)
 api_key = "meow"
 with open("api_key.txt", "r") as f:
     api_key = f.readline().strip()
+
 client = OpenAI(api_key=api_key)
+print(client.api_key)
 
 def generate_synthetic_data(prompt):
+    
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-3.5-turbo",
         messages=[{"role": "system", "content": prompt}],
         max_tokens=2000
     )
     return response.choices[0].message.content
+
+import tiktoken
+def count_tokens(text):
+    encoding = tiktoken.get_encoding("cl100k_base")
+    return len(encoding.encode(text))
+ds = ds.map(lambda x: {'token_count': count_tokens(x["prompt"])}, num_proc=54)
+print("TOTAL TOKENS: ", sum(ds['token_count']))
 
 def check_gpt4_output(generated, best_move):
     if "<answer>" not in generated or "<think>" not in generated or "</answer>" not in generated or "</think>" not in generated:
@@ -37,11 +49,16 @@ def format_reward_func(completion):
         pattern = r"^<think>.*?</think><answer>.*?</answer>$"
         return 2.0 if re.match(pattern, completion) else 0.0
     return 0.0
+
+ds = ds.map(lambda x: {'prompt': x["prompt"] +"\n\n" + "Make sure your reasoning trace is long, detailed, and fully explains all facets of the position. "}, num_proc=54)
 ds = ds.map(lambda x: {'generated': generate_synthetic_data(x["prompt"])}, num_proc=54)
 
 ds = ds.map(lambda x: {'is_correct': check_gpt4_output(x["generated"], x["best_move"])}, num_proc=54)
 ds = ds.filter(lambda x: x["is_correct"] == True)
-ds.save_to_disk("sft_data")
+ds = ds.map(lambda x: {'text': x["prompt"] + "\n\n" + x["generated"]}, num_proc=54)
+ds.save_to_disk("sft_data_final_2")
+print(ds[0]['text'])
+print(len(ds))
 
 
 

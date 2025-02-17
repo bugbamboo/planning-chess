@@ -1,6 +1,8 @@
 filtered_dataset_small_with_prompts/
 filtered_dataset_small_with_prompts_final/
 sft_data_final_combined/
+sft_data_final_combined_1024_eval/
+sft_data_final_combined_1024_train/
 sft_data/
 sft_data_final/
 sft_data_final_2/

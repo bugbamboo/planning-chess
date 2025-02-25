@@ -1,22 +1,18 @@
-from datasets import load_dataset, load_dataset
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 import chess
-from transformers import AutoTokenizer
-from stockfish import Stockfish
+import cairosvg
+import chess.svg
+import chess.pgn
+from PIL import Image
+import random
+from datasets import Dataset
+model = AutoModelForCausalLM.from_pretrained("output/checkpoint-1265", torch_dtype=torch.bfloat16,device_map="auto")
+tokenizer = AutoTokenizer.from_pretrained("unsloth/Llama-3.1-8B")
+position_ds = Dataset.load_from_disk("balanced_positions")
 
-ds = load_dataset("Lichess/chess-position-evaluations", split="train")
-ds = ds.select(range(0,len(ds),50))
-ds = ds.select(range(0,500000))
-ds = ds.filter(lambda x: x['fen'].split(' ')[1] == 'w')
-ds = ds.filter(lambda x: x['mate'] is None)
-ds = ds.filter(lambda x: x['cp'] <= 300)
-ds = ds.filter(lambda x: x['cp'] >= -300)
-ds = ds.shuffle(seed=42)
-ds = ds.select(range(0,50000))
-ds = ds.remove_columns([col for col in ds.column_names if (col != 'fen')])
-
-
-
-tokenizer = AutoTokenizer.from_pretrained("unsloth/Meta-Llama-3.1-8B")
+initial_fen = position_ds[random.randint(0,len(position_ds))]["fen"]
+board = chess.Board(initial_fen)
 
 SYSTEM_PROMPT = """
 You are an expert chess player playing against Magnus Carlsen in the final of the world championship. You are white (your pieces are uppercase), and you are to move. Please think about the move you want to make, then select the best move from the list of legal moves in the given position.
@@ -84,53 +80,51 @@ def generate_board_prompt(fen):
     legal_moves = [board.san(move) for move in board.legal_moves]
     prompt_lines.append("Legal moves (SAN): " + ", ".join(legal_moves))
     prompt_lines.append("\nMake sure to reason carefully, calculating ahead several moves. Take as much time as you need.")
-    return "\n".join(prompt_lines)
+    return SYSTEM_PROMPT + "\n".join(prompt_lines)
 
-
-def best_move(fen, line):
-    board = chess.Board(fen)
-    move = chess.Move.from_uci(line.split(" ")[0])
-    return board.san(move)
-
-
-ds = ds.map(lambda x: { # type: ignore
-        'prompt': SYSTEM_PROMPT + generate_board_prompt(x["fen"])}, num_proc=10)
-
-
-def init_stockfish():
-    global engine
-    engine = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=14)
-    engine.update_engine_parameters({"Hash": 64, "Threads": 1})
-
-def get_top_moves(fen):
-    global engine
-    if 'engine' not in globals():
-        init_stockfish()
-    engine.set_fen_position(fen)
-    board = chess.Board(fen)
-    top_moves = engine.get_top_moves(20)
-    if not top_moves:
-        return []
-    best_cp = top_moves[0]['Centipawn']
-    if best_cp is None:
-        return []
-    moves = []
-    for move in top_moves:
-        if move['Move'][:2] == move['Move'][2:]:
-            return []
-        if move['Centipawn'] is None:
-            return []
-        if best_cp - move['Centipawn'] < 80:
-            moves.append(board.san(chess.Move.from_uci(move["Move"])))
-    return moves
-
-ds = ds.map(lambda x: {'best_move': get_top_moves(x["fen"])},num_proc=54)
-ds = ds.filter(lambda x: len(x['best_move']) > 0)
-
-llm_prompt = ds[1732]["prompt"]
-
-ds.save_to_disk("filtered_dataset_small_with_prompts_final")
-
-print(llm_prompt)
-
-
+game = chess.pgn.Game()
+game.headers["White"] = "Engine"
+game.headers["Black"] = "Achyuta"
+game.setup(board)
+while not board.is_game_over():
+    node = game
+    if board.turn == chess.WHITE:
+        print("######################### NEW TURN #########################")
+        inp = tokenizer.encode(generate_board_prompt(board.fen()), return_tensors="pt").to(model.device)
+        output = model.generate(inp, max_new_tokens=1024,stop_strings=["</answer>"],tokenizer=tokenizer)
+        output = tokenizer.decode(output[0], skip_special_tokens=True)
+        output = output.partition("Make sure your reasoning trace is long, detailed, and fully explains all facets of the position.")[2]
+        move = output.split("<answer>\n")[1].split("\n</answer>")[0]
+        reasoning = output.split("<think>")[1].split("</think>")[0]
+        if move not in [board.san(move) for move in board.legal_moves]:
+            print("Invalid move tried by model: ", move)
+            continue
+        node = node.add_variation(board.parse_san(move))
+        board.push(board.parse_san(move))
+        print(reasoning)
+        print("######################### END OF THOUGHT PROCESS #########################")
+        svg_board = chess.svg.board(board=board)
+        svg_filename = f"board.svg"
+        png_filename = f"board.png"
+        with open(svg_filename, "w") as svg_file:
+            svg_file.write(svg_board)
+        
+        cairosvg.svg2png(url=svg_filename, write_to=png_filename)
+        #resize image
+        image = Image.open(png_filename)
+        image = image.resize((256, 256))
+        image.save(png_filename)
+        
+    else:
+        move = input("Enter your move (in SAN notation, eg Nf3): ")
+        if move == "q":
+            break
+        if move not in [board.san(move) for move in board.legal_moves]:
+            print("Invalid move tried by human: ", move)
+            continue
+        
+        node = node.add_variation(board.parse_san(move))
+        board.push(board.parse_san(move))
+#save the full game to a pgn file
+game.headers["Result"] = board.result()
+print(game, file=open("game.pgn", "w"), end="\n\n")

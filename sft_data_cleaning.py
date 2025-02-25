@@ -87,13 +87,6 @@ def best_move(fen, line):
     move = chess.Move.from_uci(line.split(" ")[0])
     return board.san(move)
 
-SYSTEM_PROMPT_2 = """
-You are an expert chess player playing against Magnus Carlsen in the final of the world championship. You are white (your pieces are uppercase), and you are to move. Please think about the move you want to make, then select the best move from the list of legal moves in the given position.
-<think>
-...
-</think>
-\n
-"""
 
 ds = ds.map(lambda x: { # type: ignore
         'prompt': SYSTEM_PROMPT + generate_board_prompt(x["fen"])}, num_proc=54)

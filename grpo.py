@@ -69,20 +69,20 @@ class WandbPredictionProgressCallback(WandbCallback):
                 boards.append(wandb.Image(png_filename))
             completions = []
             prompts = sample['prompt']
+            moves = []
             for prompt in prompts:
                 with torch.no_grad():
                     inp = tokenizer.encode(prompt, return_tensors="pt").to(model.device)
-                    output = model.generate(inp, max_new_tokens=384,stop_strings=["</answer>"],tokenizer=tokenizer)
+                    output = model.generate(inp, max_new_tokens=512,stop_strings=["</answer>"],tokenizer=tokenizer)
                     output = tokenizer.decode(output[0], skip_special_tokens=True)
                     output = output.partition("Make sure your reasoning trace is long, detailed, and fully explains all facets of the position.")[2]
                     output = ("<think>" +output.partition("</answer>")[0] + "</answer>").partition("<think>")[2] 
-                    completions.append(output.replace("\n", ""))
-            moves = []
-            for completion in completions:
-                if format_reward_func(completion) == 2.0:
-                    moves.append(completion.split("<answer>")[1].split("</answer>")[0])        
-                else:
-                    moves.append("")
+                    output = output.replace("\n", "")
+                    completions.append(output)
+                    if "<answer>" in output and "</answer>" in output:
+                        moves.append(output.split("<answer>")[1].split("</answer>")[0])
+                    else:
+                        moves.append("")
             predictions_df = pd.DataFrame({"board": boards, "move": moves, "prompt": prompts, "completion": completions})
             predictions_df["step"] = state.global_step
             records_table = self._wandb.Table(dataframe=predictions_df)
@@ -93,9 +93,9 @@ class WandbPredictionProgressCallback(WandbCallback):
 ds = Dataset.load_from_disk("filtered_dataset_small_with_prompts_final")
 ending = "\n\nMake sure your reasoning trace is long, detailed, and fully explains all facets of the position. "
 ds = ds.shuffle(seed=42)
-ds = ds.select(range(20000))
+ds = ds.select(range(40000))
 ds = ds.map(lambda x: {"prompt": x["prompt"] + ending}, num_proc=32)
-stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=20)
+stockfish = Stockfish(path="/home/user/stockfish/stockfish/stockfish-ubuntu-x86-64-avx2", depth=12)
 stockfish.update_engine_parameters({"Hash": 64, "Threads": 12})
 
 
@@ -107,10 +107,6 @@ def legal_move(fen, completion):
     return str(board.parse_san(move)) if move in moves else None
 
 
-def checkmate(fen, move):
-    board = chess.Board(fen)
-    board.push(chess.Move.from_uci(move))
-    return board.is_game_over()
 
 def run_stockfish(fen, move):
     stockfish.set_fen_position(fen, send_ucinewgame_token=True)
@@ -219,7 +215,7 @@ training_args = GRPOConfig(
     logging_steps=1,
     bf16=True,
     per_device_train_batch_size=4,
-    gradient_accumulation_steps=8,
+    gradient_accumulation_steps=64,
     max_completion_length = 512,
     num_generations=16,
     num_train_epochs=1,
@@ -248,7 +244,7 @@ progress_callback = WandbPredictionProgressCallback(
     trainer=trainer,
     tokenizer=tokenizer,
     eval_dataset=ds,
-    freq=2
+    freq=1
 )
 
 # Add the callback to the trainer
